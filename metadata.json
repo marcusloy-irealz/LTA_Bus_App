@@ -1,0 +1,6 @@
+{
+  "name": "Live Singapore Bus Arrivals",
+  "description": "Live Singapore bus arrival panel with upcoming arrival times and real-time status.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
