@@ -1,51 +1,47 @@
 import express from 'express';
-import dotenv from 'dotenv';
+import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import busHandler from './api/bus.js';
 import healthHandler from './api/health.js';
-
-dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function startServer() {
   const app = express();
-  const port = parseInt(process.env.PORT || '3000', 10);
+  const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
   app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
 
-  // Register shared handlers from api/bus.js and api/health.js
-  app.get('/api/bus', (req, res) => busHandler(req, res));
-  app.get('/api/health', (req, res) => healthHandler(req, res));
+  // Health and Bus/Forecast routes importing shared standalone handlers
+  app.get('/api/health', healthHandler);
+  app.get('/api/bus', busHandler);
+  app.get('/api/2-hrs-forecast', busHandler);
+  app.get('/api/forecast', busHandler);
 
   const isProduction = process.env.NODE_ENV === 'production';
 
-  if (isProduction) {
-    app.use(express.static(path.resolve(__dirname, 'dist')));
-    app.get('*', (_req, res) => {
-      res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
-    });
-  } else {
-    const { createServer: createViteServer } = await import('vite');
+  if (!isProduction) {
     const vite = await createViteServer({
-      server: {
-        middlewareMode: true,
-        host: '0.0.0.0',
-        port: port,
-        hmr: process.env.DISABLE_HMR !== 'true',
-        watch: process.env.DISABLE_HMR === 'true' ? null : {},
-      },
+      server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
+  } else {
+    const distPath = path.resolve(__dirname, 'dist');
+    app.use(express.static(distPath));
+    app.get('*', (_req, res) => {
+      res.sendFile(path.resolve(distPath, 'index.html'));
+    });
   }
 
   app.listen(port, '0.0.0.0', () => {
-    console.log(`Server listening on port ${port}`);
+    console.log(`[Server] Live on http://0.0.0.0:${port}`);
   });
 }
 
-startServer();
+startServer().catch((err) => {
+  console.error('[Server Error]', err);
+  process.exit(1);
+});
